@@ -18,25 +18,21 @@ def is_admin(chat_id, user_id):
 
 # 🚀 /start — تەنیا لە پرایڤەت
 @bot.message_handler(commands=['start'])
-def start_cmd(message):
-    if message.chat.type != "private":
-        bot.reply_to(message, "❌ ئەم فەرمانە تەنیا لە پرایڤەت کاردەکات.")
-        return
-    
+def start(message):
     markup = types.InlineKeyboardMarkup(row_width=1)
-    add_group = types.InlineKeyboardButton("➕ زیادکردنی بۆت بۆ گروپ", url=f"https://t.me/{bot.get_me().username}?startgroup=true")
-    markup.add(add_group)
-
+    add_group = types.InlineKeyboardButton("➕ زیادکردنی بۆت بۆ گروپ", url="https://t.me/YOUR_BOT_USERNAME?startgroup=true")
+    contact_button = types.InlineKeyboardButton("📞 owner", url="https://t.me/armanj_majed")  # 🔹 ئەمە لینکی پڕۆفایلە
+    markup.add(add_group, contact_button)
+    
     bot.send_message(
         message.chat.id,
-        "👋 سڵاو! 🌸\n\n"
-        "ئەم بۆتە تایبەتە بۆ *تاگکردنی هەموو ئەندامەکانی گروپەکەت*.\n"
-        "📌 بۆ بەکارهێنان:\n"
-        "➕ بۆت زیاد بکە بۆ گروپەکەت\n"
-        "🗣 بنوسە @all بۆ تاگکردنی ئەندامان.\n"
-        "✋ بنوسە @off بۆ وەستاندنی تاگکردن.\n\n"
-        "👇 کلیک بکە بۆ زیادکردن بۆ گروپ:",
-        parse_mode="Markdown",
+        "👋 سلاو!\n\n"
+        "ئەم بۆتە تایبەتە بۆ تاگەکردنی ئەندامەکانی گروپەکەت.\n"
+        "📌 بۆ بەکارهێنانی بۆت:\n"
+        "➕ بۆتە زیاد بکە بۆ گروپەکەت\n"
+        "💬 بنوسە @all بۆ تاگەکردنی ئەندامان\n"
+        "✋ بنوسە @off بۆ وەستاندنی تاگەکردن\n\n"
+        "👇 کلیک بکە بۆ زیادکردنی بۆت یان پەیوەندی کردن:",
         reply_markup=markup
     )
 
