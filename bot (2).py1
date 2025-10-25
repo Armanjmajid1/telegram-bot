@@ -1,4 +1,4 @@
-<<<<<<< mian
+<<<<<<< HEAD
 
 from telebot import types
 
@@ -87,7 +87,7 @@ print("🤖 بۆت بە خێرایی چالاکە 🔥 (FAST MODE)")
 from telebot import types
 
 # 🔑 زانیاری بۆت
-TOKEN = "8000635137:AAE9bKrh3e8fdG1OzS0yUkJAhgZwxbZxet0"
+TOKEN = "8223031187:AAGXLpJIEccYcH1HLp0QmAiNS3q2438V25g"
 OWNER_USERNAME = "@armanj_majed"
 PHOTO_URL = "https://files.catbox.moe/junrzs.png"
 
