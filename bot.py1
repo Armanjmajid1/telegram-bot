@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-
+import telebot
 from telebot import types
 
 # 🔑 زانیاری بۆت
@@ -79,10 +78,8 @@ def deactivate_bot(message):
 @bot.message_handler(func=lambda message: True)
 def handle_all(message):
     pass  # نەتەوێ تاخیر بکات
-
 # ▶️ دەستپێکردن
 print("🤖 بۆت بە خێرایی چالاکە 🔥 (FAST MODE)")
-=======
 
 from telebot import types
 
@@ -166,5 +163,4 @@ def handle_all(message):
 
 # ▶️ دەستپێکردن
 print("🤖 بۆت بە خێرایی چالاکە 🔥 (FAST MODE)")
->>>>>>> 4e29f9a4fcab56b0490c64e542b2eaa9b847868c
 bot.infinity_polling(timeout=10, long_polling_timeout=5)
