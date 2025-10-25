@@ -163,7 +163,8 @@ def deactivate_bot(message):
 @bot.message_handler(func=lambda message: True)
 def handle_all(message):
     pass  # نەتەوێ تاخیر بکات
-
+bot.remove_webhook()
+bot.infinity_polling(timeout=10, long_polling_timeout=5)
 # ▶️ دەستپێکردن
 print("🤖 بۆت بە خێرایی چالاکە 🔥 (FAST MODE)")
 >>>>>>> db8516ba89e88dc4d18a23d71435ed80a88b43f2
