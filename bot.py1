@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-
 from telebot import types
 
 # 🔑 زانیاری بۆت
@@ -82,7 +80,7 @@ def handle_all(message):
 
 # ▶️ دەستپێکردن
 print("🤖 بۆت بە خێرایی چالاکە 🔥 (FAST MODE)")
-=======
+
 
 from telebot import types
 
