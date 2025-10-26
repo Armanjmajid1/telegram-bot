@@ -21,18 +21,18 @@ def is_admin(chat_id, user_id):
 def start(message):
     markup = types.InlineKeyboardMarkup(row_width=1)
     add_group = types.InlineKeyboardButton("➕ زیادکردنی بۆت بۆ گروپ", url="https://t.me/YOUR_BOT_USERNAME?startgroup=true")
-    contact_button = types.InlineKeyboardButton("📞 owner", url="https://t.me/armanj_majed")  # 🔹 ئەمە لینکی پڕۆفایلە
+    contact_button = types.InlineKeyboardButton("📞 👑𝐎𝐰𝐧𝐞𝐫👑", url="https://t.me/L7N07")  # 🔹 ئەمە لینکی پڕۆفایلە
     markup.add(add_group, contact_button)
     
     bot.send_message(
         message.chat.id,
-        "👋 سلاو!\n\n"
-        "ئەم بۆتە تایبەتە بۆ تاگەکردنی ئەندامەکانی گروپەکەت.\n"
-        "📌 بۆ بەکارهێنانی بۆت:\n"
-        "➕ بۆتە زیاد بکە بۆ گروپەکەت\n"
-        "💬 بنوسە @all بۆ تاگەکردنی ئەندامان\n"
-        "✋ بنوسە @off بۆ وەستاندنی تاگەکردن\n\n"
-        "👇 کلیک بکە بۆ زیادکردنی بۆت یان پەیوەندی کردن:",
+        "👋 سلاف!\n\n"
+        "ئه ف بوته تايبه ته بو تاكرنا هه مي انداميت گروپي.\n"
+        "📌 بۆ دروستكرنا  بۆتي:\n"
+        "➕ بۆتە زیده بكه بو گروپي خو\n"
+        "💬 بنوسە @all بۆ تاگ كرنا ئەندامان\n"
+        "✋ بنوسە @off بۆ ستوب كرنا تاگئ\n\n"
+        "👇 کليك بكه بو زيده كرنا گروپي يأن هه ر اريشه كئ سه روك بوت:",
         reply_markup=markup
     )
 
@@ -48,10 +48,10 @@ def mention_all(message):
         return
 
     if not mentioning_enabled:
-        bot.reply_to(message, "⛔ تاگکردن ناچالاکە! بۆ چالاککردن بنوسە /start لە پرایڤەت.")
+        bot.reply_to(message, "⛔️ تاگکردن ناچالاکە! بۆ چالاککردن بنوسە /start لە پرایڤەت.")
         return
 
-    bot.reply_to(message, "📢 دەستپێکرد بە تاگکردنی ئەندامەکان...")
+    bot.reply_to(message, "📢 نوكه بوت كار دكه ت بو تاگ كرنا انداما...")
 
     try:
         members = bot.get_chat_administrators(chat_id)
@@ -75,11 +75,11 @@ def mention_all(message):
         if text:
             bot.send_message(chat_id, text)
 
-        bot.send_message(chat_id, "✅ تاگکردن تەواو بوو.")
+        bot.send_message(chat_id, "✅ تاگ كرن خلاس بو.")
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ هەڵەیەک ڕویدا:\n{e}")
 
-# 📴 @off — وaەستاندنی تاگکردن
+# 📴 @off — تاگ هاته ستوب كرن
 @bot.message_handler(func=lambda m: m.text and "@off" in m.text.lower())
 def disable_mentions(message):
     global mentioning_enabled
