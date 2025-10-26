@@ -79,7 +79,7 @@ def mention_all(message):
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ هەڵەیەک ڕویدا:\n{e}")
 
-# 📴 @off — وەستاندنی تاگکردن
+# 📴 @off — وaەستاندنی تاگکردن
 @bot.message_handler(func=lambda m: m.text and "@off" in m.text.lower())
 def disable_mentions(message):
     global mentioning_enabled
