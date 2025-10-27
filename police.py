@@ -1,4 +1,119 @@
-get_chat_member(chat_id, user_id).user.username or bot.get_chat_member(chat_id, user_id).user.first_name}, {reason_text}")
+# PolîsBot — Full Guard (telebot)
+# pip install pyTelegramBotAPI
+import time
+import re
+from collections import defaultdict, deque
+import telebot
+from telebot import types
+
+TOKEN = "YOUR_BOT_TOKEN_HERE"   # ← توکینی بۆتەکەت لێرە بنووسە
+bot = telebot.TeleBot(TOKEN)
+
+# ---------- state ----------
+locks = {}  # per chat locks
+# default lock keys:
+DEFAULT_KEYS = [
+    "links","photos","git","sex","videos","voice","files","stickers","gifs","media",
+    "exefiles"  # apk/exe/zip/rar/7z...
+]
+
+# flood & spam settings per chat
+spam_length_threshold = defaultdict(lambda: 800)  # if text length > threshold => delete+warn
+flood_limits = defaultdict(lambda: (5, 8))  # (max_messages, seconds_window)
+flood_mute_seconds = defaultdict(lambda: 60)  # how long to mute violator
+
+# user message timestamps per chat for flood
+user_msgs = defaultdict(lambda: defaultdict(lambda: deque()))  # user_msgs[chat_id][user_id] = deque(timestamps)
+
+# helpers
+def init_locks(chat_id):
+    if chat_id not in locks:
+        locks[chat_id] = {k: False for k in DEFAULT_KEYS}
+
+def is_admin(chat_id, user_id):
+    try:
+        m = bot.get_chat_member(chat_id, user_id)
+        return m.status in ["administrator", "creator"]
+    except:
+        return False
+
+# ---------- admin menu (L7N) ----------
+@bot.message_handler(func=lambda m: m.text and m.text.lower() == "l7n")
+def send_lock_menu(message):
+    if message.chat.type not in ["group","supergroup"]:
+        return
+    init_locks(message.chat.id)
+    if not is_admin(message.chat.id, message.from_user.id):
+        bot.reply_to(message, "🚫 تەنها ئەدمین دەتوانێ ئەم فەرمانە بەکاربهێنێت.")
+        return
+
+    kb = types.InlineKeyboardMarkup(row_width=2)
+    # 10 feature locks (lock/unlock)
+    pairs = [
+        ("🔒/🔓 لینك", "links"),
+        ("🔒/🔓 ڕەسم", "photos"),
+        ("🔒/🔓 Git", "git"),
+        ("🔒/🔓 سکسی", "sex"),
+        ("🔒/🔓 ڤیدیۆ", "videos"),
+        ("🔒/🔓 ڤۆیس", "voice"),
+        ("🔒/🔓 فایل", "files"),
+        ("🔒/🔓 استیکر", "stickers"),
+        ("🔒/🔓 گیف", "gifs"),
+        ("🔒/🔓 میدیا", "media"),
+    ]
+    for label, key in pairs:
+        kb.add(types.InlineKeyboardButton(label + f" ({'ON' if locks[message.chat.id].get(key) else 'OFF'})", callback_data=f"toggle:{key}"))
+
+    # extra: exefiles (apk/exe/zip)
+    kb.add(types.InlineKeyboardButton("🔒/🔓 فایل‌نایاسای (.apk/.exe/.zip)", callback_data="toggle:exefiles"))
+
+    # lock all / unlock all
+    kb.add(types.InlineKeyboardButton("🛡️ قفل گشتی 🔒", callback_data="lock_all"),
+           types.InlineKeyboardButton("🔓 فەکەرنا گشتی 🔓", callback_data="unlock_all"))
+
+    bot.reply_to(message, "👮‍♂️ سیستەمی پاراستن — هەڵبژێرە تایبەتمەندی بۆ قفل یان فەکران:", reply_markup=kb)
+
+@bot.callback_query_handler(func=lambda c: True)
+def callback_query(c):
+    chat_id = c.message.chat.id
+    user_id = c.from_user.id
+    if not is_admin(chat_id, user_id):
+        bot.answer_callback_query(c.id, "🚫 تەنها ئەدمین دەتوانێ ئەم کارە بکات.", show_alert=True)
+        return
+    init_locks(chat_id)
+    data = c.data
+
+    if data.startswith("toggle:"):
+        key = data.split(":",1)[1]
+        locks[chat_id][key] = not locks[chat_id].get(key, False)
+        bot.answer_callback_query(c.id, f"🔧 {key} is now {'ON' if locks[chat_id][key] else 'OFF'}")
+        # edit to reflect status (optional)
+        try:
+            bot.edit_message_reply_markup(chat_id, c.message.message_id, reply_markup=None)
+        except:
+            pass
+        return
+
+    if data == "lock_all":
+        for k in locks[chat_id]:
+            locks[chat_id][k] = True
+        bot.answer_callback_query(c.id, "🛡️ هەموو قفڵەکان چالاک کران!")
+        return
+
+    if data == "unlock_all":
+        for k in locks[chat_id]:
+            locks[chat_id][k] = False
+        bot.answer_callback_query(c.id, "🔓 هەموو قفڵەکان فەکران!")
+        return
+
+# ---------- moderation helpers ----------
+def delete_and_warn(chat_id, user_id, message_id, reason_text):
+    try:
+        bot.delete_message(chat_id, message_id)
+    except:
+        pass
+    try:
+        bot.send_message(chat_id, f"⚠️ @{bot.get_chat_member(chat_id, user_id).user.username or bot.get_chat_member(chat_id, user_id).user.first_name}, {reason_text}")
     except:
         # fallback
         bot.send_message(chat_id, "⚠️ پەیامەکە سڕدرا (هۆک: {})".format(reason_text))
