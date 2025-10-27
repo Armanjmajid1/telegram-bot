@@ -6,7 +6,7 @@ from collections import defaultdict, deque
 import telebot
 from telebot import types
 
-TOKEN = "YOUR_BOT_TOKEN_HERE"   # ← توکینی بۆتەکەت لێرە بنووسە
+TOKEN = "8016109195:AAGjQQlWzhQhmz1dnTZP9IUzoondxLBM4cE"   # ← توکینی بۆتەکەت لێرە بنووسە
 bot = telebot.TeleBot(TOKEN)
 
 # ---------- state ----------
@@ -218,12 +218,10 @@ def protect(message):
         return
 
     # 13) flood (rate limit)
-    if check_flood(chat_id, user_id):
-        mute_time = flood_mute_seconds[chat_id]mute_user(chat_id, user_id, mute_time)
-        delete_and_warn(chat_id, user_id, message.message_id, f"تۆ پەیام زۆر نارد — مۆد کراوەتەوە بۆ {mute_time} چرکە.")
-        # clear deque to avoid repeated mutes
-        user_msgs[chat_id][user_id].clear()
-        return
+spam_length_threshold = defaultdict(lambda: 800)
+flood_limits = defaultdict(lambda: (5, 8))  # max_messages, seconds window
+flood_mute_seconds = defaultdict(lambda: 60)  # how long to mute violator
+flood_rate = defaultdict(lambda: 0)  # current flood rate tracker
 
 # ---------- optional admin commands to configure ----------
 @bot.message_handler(commands=['set_spam_len'])
