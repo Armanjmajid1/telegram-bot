@@ -1,3 +1,3 @@
 worker: python bot.py
-worker: musicbot.py 
-worker: fonts.py
+worker: python musicbot.py 
+worker: python fonts.py
