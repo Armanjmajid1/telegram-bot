@@ -1,137 +1,98 @@
-import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-import logging
+bot tag
+import telebot
+from telebot import types
+import time
 
-# 📦 logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+TOKEN = "8386116524:AAH7UHj8vvsGziJrSHxqsTYcv7KUdumPNNk"  # 🔑 توکەنی خۆت لێرە بنووسە
+bot = telebot.TeleBot(TOKEN)
 
-# 🔑 توكن لە ڤاریەبڵی پارێزراوە
-TOKEN = os.environ.get("8386116524:AAH7UHj8vvsGziJrSHxqsTYcv7KUdumPNNk")
+# گۆڕاو بۆ چالاکی تاگکردن
+mentioning_enabled = True
 
-# 🧠 پشکنینی ئەدمین
-async def is_admin(update: Update, user_id: int) -> bool:
-    member = await update.effective_chat.get_member(user_id)
-    return member.status in ["administrator", "creator"]
+# ⚙️ چککردنی ئەدمین
+def is_admin(chat_id, user_id):
+    try:
+        member = bot.get_chat_member(chat_id, user_id)
+        return member.status in ["administrator", "creator"]
+    except:
+        return False
 
-# 🚀 /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.chat.type != "private":
-        await update.message.reply_text("❌ ئەم فەرمانە تەنها لە پرایڤەت کاردەکات.")
-        return
-
-    keyboard = [
-        [InlineKeyboardButton("➕ زیادکردنی بۆت بۆ گروپ", url=f"https://t.me/{(kawdan context.bot.get_me()).username}?startgroup=true")],
-        [InlineKeyboardButton("⚙️ ڕێکخستنەکان", callback_data="settings")]
-    ]
-    await update.message.reply_text(
-        "👋 سڵاو! من بۆتەکەم بۆ تاگکردنی ئەندامان و یارمەتیدان.\n\n"
-        "📢 بنووسە @l7n لە گرووپ بۆ دوگمەکان.\n"
-        "👑 بنووسە /admin بۆ تاگکردنی ئەدمینەکان.\n"
-        "ℹ️ بنووسە /help بۆ زانیاری زیاتر.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+# 🚀 /start — تەنیا لە پرایڤەت
+@bot.message_handler(commands=['start'])
+def start(message):
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    add_group = types.InlineKeyboardButton("➕ زیادکردنی بۆت بۆ گروپ", url="https://t.me/YOUR_BOT_USERNAME?startgroup=true")
+    contact_button = types.InlineKeyboardButton("📞 👑𝐎𝐰𝐧𝐞𝐫👑", url="https://t.me/L7N07")  # 🔹 ئەمە لینکی پڕۆفایلە
+    markup.add(add_group, contact_button)
+    
+    bot.send_message(
+        message.chat.id,
+        "👋 سلاف!\n\n"
+        "ئه ف بوته تايبه ته بو تاكرنا هه مي انداميت گروپي.\n"
+        "📌 بۆ دروستكرنا  بۆتي:\n"
+        "➕ بۆتە زیده بكه بو گروپي خو\n"
+        "💬 بنوسە @all بۆ تاگ كرنا ئەندامان\n"
+        "✋ بنوسە @off بۆ ستوب كرنا تاگئ\n\n"
+        "👇 کليك بكه بو زيده كرنا گروپي يأن هه ر اريشه كئ سه روك بوت:",
+        reply_markup=markup
     )
 
-# ⚙️ settings
-async def settings_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.message.reply_text("⚙️ هیچ شتێکی ڕێکخستن نیە ئێستا، بە زووانە زیاد دەبێت 💜")
+# 📣 @all — تاگکردنی ئەدمینەکان
+@bot.message_handler(func=lambda m: m.text and "@all" in m.text.lower())
+def mention_all(message):
+    global mentioning_enabled
+    chat_id = message.chat.id
+    user_id = message.from_user.id
 
-# ℹ️ /help
-async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "📖 *یارمەتی بۆت:*\n\n"
-        "🔹 @l7n → نیشاندانی دوگمەکان\n"
-        "🔹 @all → تاگکردنی هەموو ئەندامەکان (تەنها ئەدمین)\n"
-        "🔹 @stop → وەستاندنی تاگکردن\n"
-        "🔹 /admin → تاگکردنی تەنها ئەدمینەکان\n"
-        "🔹 /help → ئەم پەیامە\n\n"
-        "🧿 بۆتەکەت بە شێوەیەکی تایبەت بۆ گرووپەکان کاردەکات."
-    )
-    await update.message.reply_text(text, parse_mode="Markdown")
-
-# 📣 @all
-async def tag_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.message.from_user
-    chat = update.message.chat
-
-    if not await is_admin(update, user.id):
-        await update.message.reply_text("🚫 تەنها ئەدمین دەتوانێ @all بەکاربهێنێت.")
+    if not is_admin(chat_id, user_id):
+        bot.reply_to(message, "🚫 تەنیا ئەدمین دەتوانێ @all بەکاربهێنێت.")
         return
 
-    await update.message.reply_text("📢 دەستپێکرد بە تاگکردنی ئەندامەکان...")
+    if not mentioning_enabled:
+        bot.reply_to(message, "⛔️ تاگکردن ناچالاکە! بۆ چالاککردن بنوسە /start لە پرایڤەت.")
+        return
+
+    bot.reply_to(message, "📢 نوكه بوت كار دكه ت بو تاگ كرنا انداما...")
 
     try:
-        members = await context.bot.get_chat_administrators(chat.id)
+        members = bot.get_chat_administrators(chat_id)
+        names = []
+        for member in members:
+            if not member.user.is_bot:
+                name = f"@{member.user.username}" if member.user.username else member.user.first_name
+                names.append(name)
+
+        if not names:
+            bot.send_message(chat_id, "⚠️ هیچ ئەندامێک نەدۆزرایەوە.")
+            return
+
         text = ""
-        for member in members:
-            if not member.user.is_bot:
-                name = f"@{member.user.username}" if member.user.username else member.user.first_name
-                text += f"{name} "
-                if len(text) > 300:
-                    await update.message.reply_text(text)
-                    text = ""
+        for i, name in enumerate(names, 1):
+            text += name + " "
+            if i % 4 == 0:
+                bot.send_message(chat_id, text)
+                text = ""
+                time.sleep(1)
         if text:
-            await update.message.reply_text(text)
-        await update.message.reply_text("✅ تاگکردن تەواو بوو.")
+            bot.send_message(chat_id, text)
+
+        bot.send_message(chat_id, "✅ تاگ كرن خلاس بو.")
     except Exception as e:
-        await update.message.reply_text(f"⚠️ هەڵەیەک ڕویدا:\n{e}")
+        bot.send_message(chat_id, f"⚠️ هەڵەیەک ڕویدا:\n{e}")
 
-# 🛑 @stop
-async def stop_tagging(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⛔ تاگکردن وەستا.")
+# 📴 @off — تاگ هاته ستوب كرن
+@bot.message_handler(func=lambda m: m.text and "@off" in m.text.lower())
+def disable_mentions(message):
+    global mentioning_enabled
+    chat_id = message.chat.id
+    user_id = message.from_user.id
 
-# 🟣 @l7n
-async def show_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.message.from_user
-    if not await is_admin(update, user.id):
-        await update.message.reply_text("🚫 تەنها ئەدمین دەتوانێ @l7n بەکاربهێنێت.")
+    if not is_admin(chat_id, user_id):
+        bot.reply_to(message, "🚫 تەنیا ئەدمین دەتوانێ @off بەکاربهێنێت.")
         return
 
-    keyboard = [
-        [InlineKeyboardButton("🔵 @all", callback_data="tag_all"),
-         InlineKeyboardButton("🔴 @stop", callback_data="stop_tag")]
-    ]
-    await update.message.reply_text("🎛 دوگمەکان:", reply_markup=InlineKeyboardMarkup(keyboard))
+    mentioning_enabled = False
+    bot.send_message(chat_id, "🛑 تاگکردن وەستێت.")
 
-# 👑 /admin
-async def tag_admins(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.message.chat
-    try:
-        members = await context.bot.get_chat_administrators(chat.id)
-        text = "👑 ئەدمینەکان:\n"
-        for member in members:
-            if not member.user.is_bot:
-                name = f"@{member.user.username}" if member.user.username else member.user.first_name
-                text += f"{name} "
-        await update.message.reply_text(text)
-    except Exception as e:
-        await update.message.reply_text(f"⚠️ هەڵەیەک ڕویدا:\n{e}")
-
-# 🎛 دوگمەکان
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    if query.data == "tag_all":
-        await tag_all(Update(update.update_id, message=query.message), context)
-    elif query.data == "stop_tag":
-        await query.message.reply_text("⛔ تاگکردن وەستا.")
-
-# ▶️ ڕاگەیاندن
-def main():
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_cmd))
-    app.add_handler(CommandHandler("admin", tag_admins))
-    app.add_handler(CallbackQueryHandler(settings_callback, pattern="settings"))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("@all"), tag_all))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("@stop"), stop_tagging))
-    app.add_handler(MessageHandler(filters.TEXT & filters.Regex("@l7n"), show_buttons))
-    app.add_handler(CallbackQueryHandler(button_callback))
-
-    print("🤖 Bot is running...")
-    app.run_polling()
-
-if name == "__main__":
-    main()
+print("🤖 Bot چالاکە و ئامادەیە 🔥")
+bot.infinity_polling()
