@@ -1,11 +1,14 @@
 import telebot
 from telebot import types
+from datetime import datetime
 
-# 🔑 توکەنی بۆتەکەت لێرە بنووسە
+# ==== توكن و یوزەرنەیمى بۆت ====
 TOKEN = "8016109195:AAEu7Xr9nt9QIDAYJY4KObqmnuoKVpUXwm0"
+OWNER = "@l7n07"
+
 bot = telebot.TeleBot(TOKEN)
 
-# 🧱 پاراستنەکان
+# ==== قفڵ و فەتح ====
 locks = {}
 
 def init_locks(chat_id):
@@ -15,140 +18,111 @@ def init_locks(chat_id):
             "photos": False,
             "videos": False,
             "files": False,
-            "stickers": False,
             "gifs": False,
-            "music": False,
-            "voices": False,
-            "all": False
+            "stickers": False
         }
 
-# 🧩 فانکشن بۆ دوگمەکانی پاراستن
-def send_group_buttons(chat_id):
-    kb = types.InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        types.InlineKeyboardButton("🔒 قفل لینک", callback_data="lock_links"),
-        types.InlineKeyboardButton("🔓 فەتح لینک", callback_data="unlock_links"),
-        types.InlineKeyboardButton("🔒 قفل وێنە", callback_data="lock_photos"),
-        types.InlineKeyboardButton("🔓 فەتح وێنە", callback_data="unlock_photos"),
-        types.InlineKeyboardButton("🔒 قفل ڤیدیو", callback_data="lock_videos"),
-        types.InlineKeyboardButton("🔓 فەتح ڤیدیو", callback_data="unlock_videos"),
-        types.InlineKeyboardButton("🔒 قفل فایل", callback_data="lock_files"),
-        types.InlineKeyboardButton("🔓 فەتح فایل", callback_data="unlock_files"),
-        types.InlineKeyboardButton("🔒 قفل گیف", callback_data="lock_gifs"),
-        types.InlineKeyboardButton("🔓 فەتح گیف", callback_data="unlock_gifs"),
-        types.InlineKeyboardButton("🔒 قفل ستیکەر", callback_data="lock_stickers"),
-        types.InlineKeyboardButton("🔓 فەتح ستیکەر", callback_data="unlock_stickers"),
-        types.InlineKeyboardButton("🔒 قفل میوزیک 🎵", callback_data="lock_music"),
-        types.InlineKeyboardButton("🔓 فەتح میوزیک 🎵", callback_data="unlock_music"),
-        types.InlineKeyboardButton("🔒 قفل ڤۆیس 🔊", callback_data="lock_voices"),
-        types.InlineKeyboardButton("🔓 فەتح ڤۆیس 🔊", callback_data="unlock_voices"),
-        types.InlineKeyboardButton("👋 ناردنی پەیامی بەخێرهاتن", callback_data="send_welcome"),
-        types.InlineKeyboardButton("🔒 قفل هەموو شت 🔐", callback_data="lock_all"),
-        types.InlineKeyboardButton("🔓 فەتح هەموو شت 🔓", callback_data="unlock_all")
-    )
-    bot.send_message(chat_id, "🛡 بەشی پاراستن:\nدوگمەی خوازراوت هەڵبژێرە 👇", reply_markup=kb)
-
-# ⚙️ بەکارهێنانی دوگمەکان (قفڵ، فەتح، بەخێرهاتن)
-@bot.callback_query_handler(func=lambda call: True)
-def callback_handler(call):
-    chat_id = call.message.chat.id
-    user_id = call.from_user.id
-    init_locks(chat_id)
-
-    try:
-        member = bot.get_chat_member(chat_id, user_id)
-        if member.status not in ["administrator", "creator"]:
-            bot.answer_callback_query(call.id, "🚫 تەنها ئەدمین دەتوانێت ئەم دوگمەیە بەکاربێنێ!")
-            return
-    except:
-        pass
-
-    data = call.data
-
-    # ✅ پەیامی بەخێرهاتن (هەمیار)
-    if data == "send_welcome":
-        try:
-            chat_info = bot.get_chat(chat_id)
-            group_name = chat_info.title
-
-            # تێکستی بەخێرهاتن
-            welcome_text = (
-                f"👮‍♂️ بەخێربێیت بۆ گرووپی {group_name}!\n"
-                "🎉 ئەم گرووپە بە پاراستنی Police L7N کار دەکات.\n\n"
-                f"🆔 ID: `{user_id}`\n"
-                f"👤 یوزەر: @{call.from_user.username if call.from_user.username else 'یوزەر نەهەیە'}"
-            )
-
-            # 🔗 دوگمەی ئەدمین بۆ لینک تایبەتی
-            kb = types.InlineKeyboardMarkup()
-            kb.add(types.InlineKeyboardButton("👮‍♂️ پەیوەندی بە خاوەنی بۆت", url="https://t.me/l7n07"))
-
-            bot.send_message(chat_id, welcome_text, parse_mode="Markdown", reply_markup=kb)
-            bot.answer_callback_query(call.id, "✅ پەیامی بەخێرهاتن نێردرا!")
-        except Exception as e:
-            bot.answer_callback_query(call.id, f"⚠️ هەڵەیەک ڕوویدا: {e}")
-
-    elif data.startswith("lock_") or data.startswith("unlock_"):
-        action, feature = data.split("_", 1)
-        if feature == "all":
-            for k in locks[chat_id]:
-                locks[chat_id][k] = (action == "lock")
-            bot.answer_callback_query(call.id, f"{'🔒' if action=='lock' else '🔓'} هەموو شت {'قفل' if action=='lock' else 'فەتح'} کرا")
-        else:
-            locks[chat_id][feature] = (action == "lock")
-            bot.answer_callback_query(call.id, f"{'🔒' if action=='lock' else '🔓'} {feature} {'قفل' if action=='lock' else 'فەتح'} کرا")
-
-# 🚫 پاراستنی گرووپ
-@bot.message_handler(func=lambda m: True)
-def group_filter(message):
-    chat_id = message.chat.id
-    init_locks(chat_id)
-
-    if message.chat.type in ["group", "supergroup"] and message.text and "L7N" in message.text:
-        send_group_buttons(chat_id)
-        return
-
-    try:
-        if locks[chat_id]["links"] and message.text and ("http" in message.text or "t.me" in message.text):
-            bot.delete_message(chat_id, message.message_id)
-        if locks[chat_id]["photos"] and message.content_type == "photo":
-            bot.delete_message(chat_id, message.message_id)
-        if locks[chat_id]["videos"] and message.content_type == "video":
-            bot.delete_message(chat_id, message.message_id)
-        if locks[chat_id]["files"] and message.document:
-            bot.delete_message(chat_id, message.message_id)
-        if locks[chat_id]["stickers"] and message.content_type == "sticker":
-            bot.delete_message(chat_id, message.message_id)
-        if locks[chat_id]["gifs"] and message.content_type == "animation":
-            bot.delete_message(chat_id, message.message_id)
-        if locks[chat_id]["music"] and message.audio:
-            bot.delete_message(chat_id, message.message_id)
-        if locks[chat_id]["voices"] and message.voice:
-            bot.delete_message(chat_id, message.message_id)
-    except:
-        pass
-
-# 🏁 پەیامی Start لە پرایڤەت
+# ==== start ====
 @bot.message_handler(commands=["start"])
-def start(message):
+def start_message(message):
     if message.chat.type != "private":
         return
 
-    text = (
-        f"👋 سڵاو {message.from_user.first_name}!\n\n"
-        "🚔 بەخێربێیت بۆ **Police L7N Bot**\n\n"
-        "بەم بۆتە دەتوانی گرووپەکەت پارێزیت لە:\n"
-        "🔗 لینک، 🖼 وێنە، 🎥 ڤیدیو، 🎵 میوزیک، 📄 فایل و هتد.\n\n"
-        "👇 هەڵبژێرە چی دەخوازیت بکەیت:"
+    text = f"""
+👋 سڵاو {message.from_user.first_name}!
+🤖 بۆتی پاراستنی گرووپ Police L7N بوتە.
+👇 دوگمەی خوارەوە کرتە بکە:
+"""
+
+    keyboard = types.InlineKeyboardMarkup(row_width=1)
+    keyboard.add(
+        types.InlineKeyboardButton("➕ زیادکردنەوە بۆ گرووپ", url="https://t.me/policekurbot?startgroup=true"),
+        types.InlineKeyboardButton("📞 چاتی تایبەتی", url=f"https://t.me/{OWNER.replace('@','')}")
     )
+    bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
-    kb = types.InlineKeyboardMarkup(row_width=1)
-    kb.add(
-        types.InlineKeyboardButton("➕ زیادکردن بۆ گرووپ", url="https://t.me/policekurbot?startgroup=true"),
-        types.InlineKeyboardButton("👤 جونا خاسی و نه‌ره‌ری", url="https://t.me/l7n07")
-    )
+# ==== فلتەر بۆ پاراستن پەیامەکان ====
+@bot.message_handler(func=lambda m: m.chat.type in ["group", "supergroup"])
+def protect_group(message):
+    chat_id = message.chat.id
+    init_locks(chat_id)
 
-    bot.send_message(message.chat.id, text, parse_mode="Markdown", reply_markup=kb)
+    # قفڵی لینک
+    if locks[chat_id]["links"] and (("http" in message.text) or ("t.me" in message.text)):
+        bot.delete_message(chat_id, message.message_id)
+        return
 
-print("🚓 Police L7N Bot — Welcome Ready ✅")
-bot.infinity_polling(timeout=60, long_polling_timeout=60)
+    # قفڵی وێنە
+    if locks[chat_id]["photos"] and message.content_type == "photo":
+        bot.delete_message(chat_id, message.message_id)
+        return
+
+    # قفڵی ڤیدیۆ
+    if locks[chat_id]["videos"] and message.content_type == "video":
+        bot.delete_message(chat_id, message.message_id)
+        return
+
+    # قفڵی فایل
+    if locks[chat_id]["files"] and message.content_type == "document":
+        bot.delete_message(chat_id, message.message_id)
+        return
+
+    # قفڵی گیف
+    if locks[chat_id]["gifs"] and message.content_type == "animation":
+        bot.delete_message(chat_id, message.message_id)
+        return
+
+    # قفڵی ستیكر
+    if locks[chat_id]["stickers"] and message.content_type == "sticker":
+        bot.delete_message(chat_id, message.message_id)
+        return
+
+    # قفڵی مۆسیقا
+    if "music" in locks[chat_id] and locks[chat_id]["music"] and message.audio:
+        bot.delete_message(chat_id, message.message_id)
+        return
+
+    # قفڵی ڤۆیس
+    if "voice" in locks[chat_id] and locks[chat_id]["voice"] and message.voice:
+        bot.delete_message(chat_id, message.message_id)
+        return
+    for label, data in buttons:
+        kb.add(types.InlineKeyboardButton(label, callback_data=data))
+
+    bot.send_message(chat_id, text, reply_markup=kb)
+
+# ==== قفڵ و فەتح بە دوگمە ====
+@bot.callback_query_handler(func=lambda c: True)
+def callback_handler(c):
+    chat_id = c.message.chat.id
+    init_locks(chat_id)
+
+    if c.data.startswith("lock_"):
+        key = c.data.split("_", 1)[1]
+        locks[chat_id][key] = True
+        bot.answer_callback_query(c.id, f"🔒 {key} قفڵ کرا")
+    elif c.data.startswith("unlock_"):
+        key = c.data.split("_", 1)[1]
+        locks[chat_id][key] = False
+        bot.answer_callback_query(c.id, f"🔓 {key} فەتح کرا")
+
+# ==== بەخێرهاتنى ئەندامى نوێ ====
+@bot.message_handler(content_types=["new_chat_members"])
+def welcome_new_member(message):
+    member = message.new_chat_members[0]
+    name = member.first_name
+    username = f"@{member.username}" if member.username else "بەکاربهێنەر نییە"
+    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    text = f"""
+👋 بەخێر هاتیت {name}!
+🆔 ID: {member.id}
+🔗 یوزەر: {username}
+📅 هاتیتە گرووپ: {date}
+👮‍♂️ لەلایەن: {OWNER}
+"""
+    bot.send_photo(message.chat.id, "https://t.me/L7Nchannal", caption=text)
+
+# ==== دەستپێك ====
+print("🚀 PoliceBot دەستپێكرد...")
+bot.infinity_polling()
