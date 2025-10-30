@@ -1,4 +1,3 @@
-bot tag
 import telebot
 from telebot import types
 import time
