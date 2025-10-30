@@ -4,7 +4,7 @@ from datetime import datetime
 
 # ==== توكن و یوزەرنەیمى بۆت ====
 TOKEN = "8016109195:AAEu7Xr9nt9QIDAYJY4KObqmnuoKVpUXwm0"
-OWNER = "@l7n07"
+OWNER = "@L7n07"
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -29,15 +29,15 @@ def start_message(message):
         return
 
     text = f"""
-👋 سڵاو {message.from_user.first_name}!
-🤖 بۆتی پاراستنی گرووپ Police L7N بوتە.
-👇 دوگمەی خوارەوە کرتە بکە:
+👋 سلاف' {message.from_user.first_name}!
+🤖 بۆتئ پاراستنا گروپي  Police L7N بوتە.
+👇 دوو دوگمه ل خارئ نه بو زيده كرنا بوتي بو گروپي دوگما دي بو هه ر اريشه كي نامه كي فريكه:
 """
 
     keyboard = types.InlineKeyboardMarkup(row_width=1)
     keyboard.add(
-        types.InlineKeyboardButton("➕ زیادکردنەوە بۆ گرووپ", url="https://t.me/policekurbot?startgroup=true"),
-        types.InlineKeyboardButton("📞 چاتی تایبەتی", url=f"https://t.me/{OWNER.replace('@','')}")
+        types.InlineKeyboardButton("➕ بوتي ل گروپئ خو زيده بكه", url="https://t.me/policekurbot?startgroup=true"),
+        types.InlineKeyboardButton("📞 𝐎𝐰𝐧𝐞𝐫👑 ", url=f"https://t.me/{OWNER.replace('@','')}")
     )
     bot.send_message(message.chat.id, text, reply_markup=keyboard)
 
@@ -47,28 +47,38 @@ def protect_group(message):
     chat_id = message.chat.id
     init_locks(chat_id)
 
-    # قفڵی لینک
+    # گرتنا لينكا
     if locks[chat_id]["links"] and (("http" in message.text) or ("t.me" in message.text)):
         bot.delete_message(chat_id, message.message_id)
         return
 
-    # قفڵی وێنە
+    # گرتنا وئنا
     if locks[chat_id]["photos"] and message.content_type == "photo":
         bot.delete_message(chat_id, message.message_id)
         return
 
-    # قفڵی ڤیدیۆ
+    # گرتنا فيديويا
     if locks[chat_id]["videos"] and message.content_type == "video":
         bot.delete_message(chat_id, message.message_id)
         return
 
-    # قفڵی فایل
+    # گرتنا فايلا
     if locks[chat_id]["files"] and message.content_type == "document":
         bot.delete_message(chat_id, message.message_id)
         return
 
-    # قفڵی گیف
+    # گرتنا گيفتا
     if locks[chat_id]["gifs"] and message.content_type == "animation":
+        bot.delete_message(chat_id, message.message_id)
+        return
+
+    # گرتنا ستيكه را
+    if locks[chat_id]["stickers"] and message.content_type == "sticker":
+        bot.delete_message(chat_id, message.message_id)
+        return
+
+    # گرتنا سترانا
+    if "music" in locks[chat_id] and locks[chat_id]["music"] and message.audio:
         bot.delete_message(chat_id, message.message_id)
         return
 
@@ -76,16 +86,7 @@ def protect_group(message):
     if locks[chat_id]["stickers"] and message.content_type == "sticker":
         bot.delete_message(chat_id, message.message_id)
         return
-
-    # قفڵی مۆسیقا
-    if "music" in locks[chat_id] and locks[chat_id]["music"] and message.audio:
-        bot.delete_message(chat_id, message.message_id)
-        return
-
-    # قفڵی ڤۆیس
-    if "voice" in locks[chat_id] and locks[chat_id]["voice"] and message.voice:
-        bot.delete_message(chat_id, message.message_id)
-        return
+        
     for label, data in buttons:
         kb.add(types.InlineKeyboardButton(label, callback_data=data))
 
@@ -100,11 +101,11 @@ def callback_handler(c):
     if c.data.startswith("lock_"):
         key = c.data.split("_", 1)[1]
         locks[chat_id][key] = True
-        bot.answer_callback_query(c.id, f"🔒 {key} قفڵ کرا")
+        bot.answer_callback_query(c.id, f"🔒 {key} گرت")
     elif c.data.startswith("unlock_"):
         key = c.data.split("_", 1)[1]
         locks[chat_id][key] = False
-        bot.answer_callback_query(c.id, f"🔓 {key} فەتح کرا")
+        bot.answer_callback_query(c.id, f"🔓 {key} فه كر")
 
 # ==== بەخێرهاتنى ئەندامى نوێ ====
 @bot.message_handler(content_types=["new_chat_members"])
