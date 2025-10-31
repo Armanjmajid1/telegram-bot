@@ -412,7 +412,7 @@ def check_join(message):
                 )
 
 print("🤖 بۆت بەسەرکەوتووی چالاکە...")
-=======
+
 import telebot
 from telebot import types
 import time
@@ -827,5 +827,4 @@ def check_join(message):
                 )
 
 print("🤖 بۆت بەسەرکەوتووی چالاکە...")
->>>>>>> 5c2ae79dd32e583402aed64fffcba64a6d8c2082
 bot.infinity_polling()
