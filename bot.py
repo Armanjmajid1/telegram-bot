@@ -3,8 +3,8 @@ from telebot import types
 from datetime import datetime
 
 # ================== CONFIG ==================
-TOKEN = "8397765532:AAGdinwgJ7d0e8dM6ND9kGwcAdEclZMFvWg"
-BOT_USERNAME = "L77NN_BOT"   # بێ @
+TOKEN = "8374135713:AAEbmx-ifpBEDW4SVQmYOBZiOBoAi2hVeT8"
+BOT_USERNAME = "policel7nbot"   # بێ @
 OWNER_USERNAME = "L7N07"     # بێ @
 
 bot = telebot.TeleBot(TOKEN)
