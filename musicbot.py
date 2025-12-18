@@ -162,6 +162,10 @@ def check_join(message):
             )
 
             text = f"❌ {message.from_user.first_name}\nسەرەتا چەنال جوین بکە"
+   • به ريز كه نالئ مه جوين بكه 
+• گه ر ته فيت گروپي دا باخفي 
+• ئەگەر تو جوين نه كي دوباره في نامي  
+• بوته فريكم ⚠️
 
             if JOIN_PHOTO:
                 bot.send_photo(chat_id, JOIN_PHOTO, caption=text, reply_markup=kb)
