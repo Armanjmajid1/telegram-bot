@@ -4,138 +4,113 @@ from telebot import types
 TOKEN = "8502306914:AAGCbeQ85IaYirA8T9OuI3fqR6oKyZP8l6M"
 bot = telebot.TeleBot(TOKEN, parse_mode="HTML")
 
-# ===== DATABASE (RAM) =====
-GROUPS = {}        # chat_id : True/False
-CHANNELS = {}      # chat_id : [@ch1, @ch2]
-JOIN_PHOTO = None  # file_id
+# ================== DATABASE (RAM) ==================
+GROUPS = {}        # chat_id : True / False
+CHANNELS = {}      # chat_id : [@ch1, @ch2, ...]
+JOIN_PHOTO = None  # file_id of join image
 
-# ===== ADMIN CHECK =====
-def is_admin(chat_id, user_id):
+# ================== ADMIN CHECK ==================
+def is_admin(message):
     try:
-        m = bot.get_chat_member(chat_id, user_id)
+        m = bot.get_chat_member(message.chat.id, message.from_user.id)
         return m.status in ["administrator", "creator"]
     except:
         return False
 
-@bot.message_handler(commands=['start'])
+# ================== /start (PRIVATE ONLY) ==================
+@bot.message_handler(commands=["start"], chat_types=["private"])
 def start(message):
-    if message.chat.type != "private":
-        return
+    text = """
+<b>👋 بخێرهاتی ❤️</b>
 
-    name = message.from_user.first_name
+- ئەڤ بوتە بۆ زێدەكرنا ئەندامانە بۆ کەنال 🔐
+- بوت ل گروپی خۆ admin بکە
+- پاشان ل گروپی پەیامی <b>/on</b> بنێرە
 
-    text = f"""
-👋 <b>{name}</b>
-
-- بخيرهاتي  بۆ بۆتی زیده  كرنا انداما ل گروپي بۆ كه نالي ؛ 👥
-- من ل كروپي خو بكه ادمين و كه نالي ؛ 👨‍✈️
-- و پاشي پيامي <b>{{ on }}</b> فريكه گروپي
- 
-بوت هاتيه جيكرن راقي ؛ 
-- نوكه تو دشئ  <b>[1]</b>    كه ناله كئ زيده بكه 🌸
-
-- ئه گه ر ته فيت بوتي راوستينين پيامي <b>{{ off }}</b> فريكه كروپي ؛ ❎
+<b>📌 ڕێنمایی:</b>
+• /on → چالاككرنا بوت
+• /off → راوستاندنا بوت
 """
 
-    markup = types.InlineKeyboardMarkup()
-    markup.add(
+    kb = types.InlineKeyboardMarkup()
+    kb.add(
         types.InlineKeyboardButton(
-            "➕ زیادکردنی بۆت بۆ گروپ",
+            "➕ زێدەكرنا بوتی بۆ گروپ",
             url=f"https://t.me/{bot.get_me().username}?startgroup=true"
         )
     )
+    bot.send_message(message.chat.id, text, reply_markup=kb)
 
-    bot.send_message(message.chat.id, text, reply_markup=markup)
-
-bot.infinity_polling()
-
-# =======================
-# /on
-# =======================
-@bot.message_handler(commands=["on"])
-def turn_on(message):
-    if message.chat.type == "private":
-        return
-    if not is_admin(message.chat.id, message.from_user.id):
+# ================== ON ==================
+@bot.message_handler(commands=["on"], chat_types=["group", "supergroup"])
+def on_bot(message):
+    if not is_admin(message):
         return
 
     GROUPS[message.chat.id] = True
 
     kb = types.InlineKeyboardMarkup()
     kb.add(
-        types.InlineKeyboardButton("➕ دانانی چەنال", callback_data="set_channel")
-    )
-    kb.add(
-        types.InlineKeyboardButton("🖼 دانانی وێنەی Join", callback_data="set_photo")
+        types.InlineKeyboardButton("➕ زێدەكرنا کەنال", callback_data="add_channel"),
+        types.InlineKeyboardButton("🖼 وێنەی Join", callback_data="set_photo")
     )
 
     bot.send_message(
         message.chat.id,
-        "✅ بۆت چالاک بوو\nچەنالەکان دابنێ",
+        "✅ بوت چالاك بو\n⬇️ دوگمە بكە بۆ زێدەكرنا کەنال یان وێنە",
         reply_markup=kb
     )
 
-# =======================
-# /off
-# =======================
-@bot.message_handler(commands=["off"])
-def turn_off(message):
-    if message.chat.type == "private":
+# ================== OFF ==================
+@bot.message_handler(commands=["off"], chat_types=["group", "supergroup"])
+def off_bot(message):
+    if not is_admin(message):
         return
-    if not is_admin(message.chat.id, message.from_user.id):
-        return
-
     GROUPS[message.chat.id] = False
-    bot.send_message(message.chat.id, "⛔ بۆت ناچالاک بوو")
+    bot.send_message(message.chat.id, "⛔ بوت راوسترا")
 
-# =======================
-# CALLBACKS
-# =======================
-@bot.callback_query_handler(func=lambda c: True)
-def callbacks(call):
-    if not is_admin(call.message.chat.id, call.from_user.id):
+# ================== CALLBACKS ==================
+@bot.callback_query_handler(func=lambda c: c.data == "add_channel")
+def ask_channel(call):
+    if not is_admin(call.message):
+        return
+    msg = bot.send_message(call.message.chat.id, "📌 ناڤی کەنال بنڤیسە:\n@channel")
+    bot.register_next_step_handler(msg, save_channel)
+
+@bot.callback_query_handler(func=lambda c: c.data == "set_photo")
+def ask_photo(call):
+    if not is_admin(call.message):
+        return
+    bot.send_message(call.message.chat.id, "🖼 تکایە وێنە بنێرە (بۆ پەیامی Join)")
+
+# ================== SAVE CHANNEL ==================
+def save_channel(message):
+    chat_id = message.chat.id
+    ch = message.text.strip()
+
+    if not ch.startswith("@"):
+        bot.send_message(chat_id, "❌ ناڤی کەنال دەبێت بە @ دەستپێبکەت")
         return
 
-    if call.data == "set_channel":
-        bot.send_message(
-            call.message.chat.id,
-            "✍️ چەنالەکان بنووسە\nنمونە:\n@channel1 @channel2"
-        )
-        bot.register_next_step_handler(call.message, save_channels)
+    CHANNELS.setdefault(chat_id, []).append(ch)
+    bot.send_message(chat_id, f"✅ کەنال زیادکرا: {ch}")
 
-    elif call.data == "set_photo":
-        bot.send_message(call.message.chat.id, "📸 وێنەی Join بنێرە")
-        bot.register_next_step_handler(call.message, save_photo)
-
-# =======================
-# SAVE CHANNELS
-# =======================
-def save_channels(message):
-    chs = message.text.split()
-    CHANNELS[message.chat.id] = chs
-    bot.send_message(message.chat.id, "✅ چەنالەکان هاتنە تۆمار")
-
-# =======================
-# SAVE JOIN PHOTO
-# =======================
+# ================== SAVE JOIN PHOTO ==================
+@bot.message_handler(content_types=["photo"], chat_types=["group", "supergroup"])
 def save_photo(message):
     global JOIN_PHOTO
-    if message.photo:
-        JOIN_PHOTO = message.photo[-1].file_id
-        bot.send_message(message.chat.id, "✅ وێنەی Join هاتە هەڵگرتن")
+    if not is_admin(message):
+        return
+    JOIN_PHOTO = message.photo[-1].file_id
+    bot.send_message(message.chat.id, "✅ وێنەی Join هاتە تۆماركرن")
 
-# ===============================
-# 5️⃣ CHECK JOIN (NO DELETE)
-# ===============================
+# ================== CHECK JOIN (DELETE MESSAGE) ==================
 @bot.message_handler(func=lambda m: True, content_types=["text", "photo", "video", "document"])
 def check_join(message):
     chat_id = message.chat.id
 
-    # private ignore
     if message.chat.type == "private":
         return
-
-    # bot off
     if not GROUPS.get(chat_id):
         return
 
@@ -145,44 +120,43 @@ def check_join(message):
 
     user_id = message.from_user.id
 
-    # ⚠️ تەنها یەک جار ئاگاداری
-    if WARNED.get((chat_id, user_id)):
-        return
-
     for ch in channels:
         try:
             member = bot.get_chat_member(ch, user_id)
             if member.status in ["left", "kicked"]:
                 raise Exception
         except:
+            # DELETE USER MESSAGE
+            try:
+                bot.delete_message(chat_id, message.message_id)
+            except:pass
+
             kb = types.InlineKeyboardMarkup()
-            kb.add(
-                types.InlineKeyboardButton(
-                    "📢 Join Channel",
-                    url=f"https://t.me/{ch.replace('@','')}"
+            for c in channels:
+                kb.add(
+                    types.InlineKeyboardButton(
+                        "📢 Join Channel",
+                        url=f"https://t.me/{c.replace('@','')}"
+                    )
                 )
-            )
 
-            text = f"""❌ <b>{message.from_user.first_name}</b>
+            text = f"""
+❌ <b>{message.from_user.first_name}</b>
 
-سەرەتا کەنال جوین بکە 👇
+👇 سەرەتا ئەم کەنالانە Join بکە
 
-• بە ریز کەنالەکە جوین بکە
-• دوای جوین پەیامەکەت کاردەکات
-• ئەگەر جوین نەکەیت پەیام نایە
+• هەتا جوين نەکەيت
+• هەر نامە دێ مسحکرن
+• پاش جوين → پەیام كار دەكات
 
-⚠️ بۆت فری دەکات
+⚠️ بوت فریە
 """
 
-            bot.send_message(
-                chat_id,
-                text,
-                reply_markup=kb,
-                parse_mode="HTML"
-            )
-
-            WARNED[(chat_id, user_id)] = True
+            if JOIN_PHOTO:
+                bot.send_photo(chat_id, JOIN_PHOTO, caption=text, reply_markup=kb)
+            else:
+                bot.send_message(chat_id, text, reply_markup=kb)
             return
 
-# =======================
+# ================== RUN ==================
 bot.infinity_polling()
