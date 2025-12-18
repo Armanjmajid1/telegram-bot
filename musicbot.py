@@ -1,7 +1,7 @@
 import telebot
 from telebot import types
 
-TOKEN = "https://t.me/B7Rkurdbot?start=_tgr_HxS0FsxlZWVk"
+TOKEN = "8502306914:AAGtTWs7lgrAVuwUKxClvyf6o38BSC9_nNg"
 bot = telebot.TeleBot(TOKEN, parse_mode="HTML")
 
 # ================== DATABASE (RAM) ==================
