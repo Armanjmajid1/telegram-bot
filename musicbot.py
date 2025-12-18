@@ -47,6 +47,7 @@ def start(message):
 
     bot.send_message(message.chat.id, text, reply_markup=markup)
 
+bot.infinity_polling()
 
 # =======================
 # /on
@@ -123,15 +124,16 @@ def save_photo(message):
         JOIN_PHOTO = message.photo[-1].file_id
         bot.send_message(message.chat.id, "✅ وێنەی Join هاتە هەڵگرتن")
 
-# =======================
-# CHECK JOIN (MAIN)
-# =======================
-@bot.message_handler(func=lambda m: True, content_types=["text", "photo", "video", "document"])
+# ===============================
+# CHECK JOIN (NO DELETE)
+# ===============================
+@bot.message_handler(func=lambda m: True, content_types=["text", "photo", "video"])
 def check_join(message):
     chat_id = message.chat.id
 
     if message.chat.type == "private":
         return
+
     if not GROUPS.get(chat_id):
         return
 
@@ -141,18 +143,16 @@ def check_join(message):
 
     user_id = message.from_user.id
 
+    # ⚠️ تەنها یەک جار ئاگاداری
+    if WARNED.get((chat_id, user_id)):
+        return
+
     for ch in channels:
         try:
-            member = bot.get_chat_member(ch, user_id)
-            if member.status in ["left", "kicked"]:
+            m = bot.get_chat_member(ch, user_id)
+            if m.status in ["left", "kicked"]:
                 raise Exception
         except:
-            # ❌ DELETE USER MESSAGE
-            try:
-                bot.delete_message(chat_id, message.message_id)
-            except:
-                pass
-
             kb = types.InlineKeyboardMarkup()
             kb.add(
                 types.InlineKeyboardButton(
@@ -161,20 +161,18 @@ def check_join(message):
                 )
             )
 
-         text = f"""❌ <b>{message.from_user.first_name}</b>
+            text = f"""❌ <b>{message.from_user.first_name}</b>
 
-👆 سەرەتا چەنالەكان جوین بكە
+سەرەتا کەنال جوین بکە 👇
+• بە ریز کەنالەکە جوین بکە
+• دوای جوین پەیامەکەت کاردەکات
+• ئەگەر جوین نەکەیت پەیام نایە
 
-• پێویستە هەموو چەنالەكان جوین بكەیت
-• ئەگەر جوین نەکەیت نامەکەت دەسڕدرێتەوە
-• دوای جوین دوبارە نامە بنێرە
-
-⚠️ سوپاس بۆ تێگەیشتن
+⚠️ بۆت فری دەکات
 """
-            if JOIN_PHOTO:
-                bot.send_photo(chat_id, JOIN_PHOTO, caption=text, reply_markup=kb)
-            else:
-                bot.send_message(chat_id, text, reply_markup=kb)
+
+            bot.send_message(chat_id, text, reply_markup=kb)
+            WARNED[(chat_id, user_id)] = True
             return
 
 # =======================
