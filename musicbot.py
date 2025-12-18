@@ -161,16 +161,15 @@ def check_join(message):
                 )
             )
 
-            text = f"❌ {message.from_user.first_name}\nسەرەتا چەنال جوین بکە"
-text = f"""❌ <b>{message.from_user.first_name}</b>
+         text = f"""❌ <b>{message.from_user.first_name}</b>
 
-سەرەتا کەنال جوین بکە 👇
+👆 سەرەتا چەنالەكان جوین بكە
 
-• بە ریز کەنالەکە جوین بکە
-• دوای جوین پەیامەکەت کاردەکات
-• ئەگەر جوین نەکەیت پەیام نایە
+• پێویستە هەموو چەنالەكان جوین بكەیت
+• ئەگەر جوین نەکەیت نامەکەت دەسڕدرێتەوە
+• دوای جوین دوبارە نامە بنێرە
 
-⚠️ بۆت فری دەکات
+⚠️ سوپاس بۆ تێگەیشتن
 """
             if JOIN_PHOTO:
                 bot.send_photo(chat_id, JOIN_PHOTO, caption=text, reply_markup=kb)
