@@ -125,15 +125,17 @@ def save_photo(message):
         bot.send_message(message.chat.id, "✅ وێنەی Join هاتە هەڵگرتن")
 
 # ===============================
-# CHECK JOIN (NO DELETE)
+# 5️⃣ CHECK JOIN (NO DELETE)
 # ===============================
-@bot.message_handler(func=lambda m: True, content_types=["text", "photo", "video"])
+@bot.message_handler(func=lambda m: True, content_types=["text", "photo", "video", "document"])
 def check_join(message):
     chat_id = message.chat.id
 
+    # private ignore
     if message.chat.type == "private":
         return
 
+    # bot off
     if not GROUPS.get(chat_id):
         return
 
@@ -149,8 +151,8 @@ def check_join(message):
 
     for ch in channels:
         try:
-            m = bot.get_chat_member(ch, user_id)
-            if m.status in ["left", "kicked"]:
+            member = bot.get_chat_member(ch, user_id)
+            if member.status in ["left", "kicked"]:
                 raise Exception
         except:
             kb = types.InlineKeyboardMarkup()
@@ -164,6 +166,7 @@ def check_join(message):
             text = f"""❌ <b>{message.from_user.first_name}</b>
 
 سەرەتا کەنال جوین بکە 👇
+
 • بە ریز کەنالەکە جوین بکە
 • دوای جوین پەیامەکەت کاردەکات
 • ئەگەر جوین نەکەیت پەیام نایە
@@ -171,7 +174,13 @@ def check_join(message):
 ⚠️ بۆت فری دەکات
 """
 
-            bot.send_message(chat_id, text, reply_markup=kb)
+            bot.send_message(
+                chat_id,
+                text,
+                reply_markup=kb,
+                parse_mode="HTML"
+            )
+
             WARNED[(chat_id, user_id)] = True
             return
 
