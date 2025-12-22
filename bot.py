@@ -139,31 +139,33 @@ def save_photo(message):
     bot.send_message(message.chat.id, "✅ وێنە هاتە هەڵگرتن")
 
 # ===== CHECK JOIN =====
-@bot.message_handler(content_types=["text", "photo", "video", "document", "audio", "voice"])
+@bot.message_handler(content_types=["text", "photo", "video", "document"])
 def check_join(message):
     chat_id = message.chat.id
 
-    # تەنها گروپ
+    # PRIVATE نەپشکنرێت
     if message.chat.type == "private":
         return
 
-    # ئەگەر بۆت چالاک نەبوو
+    # ئەگەر بۆت ناچالاکە
     if not GROUP_ON.get(chat_id):
         return
 
-    channels = CHANNELS.get(chat_id)
+    channels = CHANNELS.get(chat_id, {})
     if not channels:
         return
 
     user = message.from_user
+    user_id = user.id
 
+    # پشکنینی Join
     for ch in channels.values():
         try:
-            member = bot.get_chat_member(ch, user.id)
+            member = bot.get_chat_member(ch, user_id)
             if member.status in ["left", "kicked"]:
                 raise Exception
         except:
-            # ❌ نامەی ئەندام بسڕەوە
+            # ❌ نامەی ئەندام مسح دەکرێت
             try:
                 bot.delete_message(chat_id, message.message_id)
             except:
@@ -174,33 +176,35 @@ def check_join(message):
             for c in channels.values():
                 kb.add(
                     types.InlineKeyboardButton(
-                        "🔗 JOIN CHANNEL",
+                        "🔗 Join Channel",
                         url=f"https://t.me/{c.replace('@','')}"
                     )
                 )
 
-            text = f"""
+            # 🖼️ وێنە + پەیام
+            join_text = f"""
 ❌ <b>{user.first_name}</b>
 
-⚠️ تکایە سەرەتا کەنال جوین بکە 👇
+سەرەتا کەنال جوین بکە 👇
 
-• ئەگەر جوین بکەیت → پەیامەکەت کار دەکات
-• ئەگەر جوین نەکەیت → پەیامەکان دەسڕێنەوە
-• بۆت فریە ⚡
+• بە ڕێز کەنالەکان جوین بکە
+• دوای جوین، نامەکانت کار دەکات
+• ئەگەر جوین نەکەی، نامەکانت ناسڕدرێت
+
+⚠️ بۆت فریە
 """
 
-            # 🖼️ ئەگەر وێنەی Join هەیە
             if chat_id in JOIN_PHOTO:
                 bot.send_photo(
                     chat_id,
                     JOIN_PHOTO[chat_id],
-                    caption=text,
+                    caption=join_text,
                     reply_markup=kb
                 )
             else:
                 bot.send_message(
                     chat_id,
-                    text,
+                    join_text,
                     reply_markup=kb
                 )
             return
