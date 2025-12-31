@@ -1,168 +1,148 @@
 import telebot
 from telebot import types
+import yt_dlp
+import os
 
-TOKEN = "8502306914:AAGtTWs7lgrAVuwUKxClvyf6o38BSC9_nNg"
-bot = telebot.TeleBot(TOKEN, parse_mode="HTML")
+# ========= CONFIG =========
+TOKEN = "8383702961:AAFgdNwax3qbH5eVnNczhllyjSEQ2KWzPjM"
+CHANNEL_USERNAME = "@L7Nmovies"
+OWNER_ID = 6583637773  # ID ـی خۆت
 
-# ================= DATA =================
-GROUP_ON = {}        # chat_id -> True/False
-CHANNELS = {}        # chat_id -> {1:"@ch",2:"@ch",3:"@ch"}
-JOIN_PHOTO = {}      # chat_id -> file_id
+bot = telebot.TeleBot(TOKEN)
+DOWNLOAD_DIR = "downloads"
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# ================= HELPERS =================
-def is_admin(chat_id, user_id):
+# ========= STATES =========
+waiting_link = {}
+custom_start_text = "👋 سلاف {name}!\nبەخێربێیت بۆ بۆتی دالنوت 🚀"
+
+# ========= UTILS =========
+def is_joined(user_id):
     try:
-        m = bot.get_chat_member(chat_id, user_id)
-        return m.status in ["administrator", "creator"]
+        m = bot.get_chat_member(CHANNEL_USERNAME, user_id)
+        return m.status in ["member", "administrator", "creator"]
     except:
         return False
 
-# ================= START (PRIVATE) =================
-@bot.message_handler(commands=["start"], chat_types=["private"])
-def start(message):
-    name = message.from_user.first_name
-
-    text = f"""
-👋 <b>بەخێربێیت {name} ❤️</b>
-
-- بخێرهاتی بۆ بۆتی پاراستنی گروپ 🔐
-- بۆت زیاد بکە بۆ گروپ
-- بۆت بکە Admin
-- لە گروپ بنووسە <b>/on</b>
-
-✨ بۆت خۆکارە و پارێزراوە
-"""
-
-    kb = types.InlineKeyboardMarkup()
+def join_lock(chat_id):
+    kb = types.InlineKeyboardMarkup(row_width=1)
     kb.add(
-        types.InlineKeyboardButton(
-            "➕ زیادکردنی بۆت بۆ گروپ",
-            url=f"https://t.me/{bot.get_me().username}?startgroup=true"
-        )
+        types.InlineKeyboardButton("📢 Join Channel", url=f"https://t.me/{CHANNEL_USERNAME.replace('@','')}"),
+        types.InlineKeyboardButton("✅ Check Join", callback_data="check_join")
+    )
+    bot.send_message(
+        chat_id,
+        "🔒 بۆت قفلە!\n"
+        "دفيت تو كه نالي جوين بكي 👇",
+        reply_markup=kb
     )
 
-    bot.send_message(message.chat.id, text, reply_markup=kb)
-
-# ================= ON =================
-@bot.message_handler(commands=["on"], chat_types=["group","supergroup"])
-def on_cmd(message):
-    chat_id = message.chat.id
-    if not is_admin(chat_id, message.from_user.id):
+# ========= START =========
+@bot.message_handler(commands=["start"])
+def start(msg):
+    if not is_joined(msg.from_user.id):
+        join_lock(msg.chat.id)
         return
 
-    GROUP_ON[chat_id] = True
-    CHANNELS.setdefault(chat_id, {})
+    text = custom_start_text.format(name=msg.from_user.first_name)
 
     kb = types.InlineKeyboardMarkup(row_width=2)
     kb.add(
-        types.InlineKeyboardButton("➕ کەناڵ 1", callback_data="add_1"),
-        types.InlineKeyboardButton("❌ 1", callback_data="del_1"),
-        types.InlineKeyboardButton("➕ کەناڵ 2", callback_data="add_2"),
-        types.InlineKeyboardButton("❌ 2", callback_data="del_2"),
-        types.InlineKeyboardButton("➕ کەناڵ 3", callback_data="add_3"),
-        types.InlineKeyboardButton("❌ 3", callback_data="del_3"),
-        types.InlineKeyboardButton("🖼 وێنەی Join", callback_data="photo"),
-        types.InlineKeyboardButton("🔒 داخستن", callback_data="close")
+        types.InlineKeyboardButton("🎥 دالنوت ڤیدیۆ", callback_data="download"),
+        types.InlineKeyboardButton("⚙️ Settings", callback_data="settings")
     )
 
-    bot.send_message(chat_id, "⚙️ <b>Settings Join Bot</b>", reply_markup=kb)
+    bot.send_message(msg.chat.id, text, reply_markup=kb)
 
-# ================= OFF =================
-@bot.message_handler(commands=["off"], chat_types=["group","supergroup"])
-def off_cmd(message):
-    chat_id = message.chat.id
-    if not is_admin(chat_id, message.from_user.id):
-        return
-    GROUP_ON[chat_id] = False
-    bot.send_message(chat_id, "⛔ بۆت ناچالاک بوو")
-
-# ================= CALLBACKS =================
+# ========= CALLBACKS =========
 @bot.callback_query_handler(func=lambda c: True)
-def callbacks(call):
-    chat_id = call.message.chat.id
+def cb(call):
     uid = call.from_user.id
+    cid = call.message.chat.id
 
-    if not is_admin(chat_id, uid):
-        bot.answer_callback_query(call.id, "❌ تەنها ئەدمین")
+    if not is_joined(uid):
+        join_lock(cid)
         return
 
-    if call.data.startswith("add_"):
-        num = int(call.data[-1])
-        msg = bot.send_message(chat_id, f"✍️ @کەناڵی {num} بنووسە")
-        bot.register_next_step_handler(msg, lambda m: save_channel(chat_id, num, m))
+    # ---- CHECK JOIN ----
+    if call.data == "check_join":
+        if is_joined(uid):
+            bot.answer_callback_query(call.id, "✅ جوين بو!")
+            start(call.message)
+        else:
+            bot.answer_callback_query(call.id, "❌ هيشتا ته جوين نه كريه!", show_alert=True)
 
-    elif call.data.startswith("del_"):
-        num = int(call.data[-1])
-        CHANNELS.get(chat_id, {}).pop(num, None)
-        bot.send_message(chat_id, f"🗑 کەناڵ {num} سڕایەوە")
+    # ---- DOWNLOAD ----
+    elif call.data == "download":
+        waiting_link[uid] = True
+        kb = types.InlineKeyboardMarkup(row_width=1)
+        kb.add(types.InlineKeyboardButton("⛔ داخستن", callback_data="close"))
+        bot.send_message(
+            cid,
+            "🔗 نوكه لينكي فيديوي فريكه:\n"
+            "YouTube / Instagram / TikTok / Telegram / public",
+            reply_markup=kb
+        )
 
-    elif call.data == "photo":
-        msg = bot.send_message(chat_id, "🖼 وێنەی Join بنێرە")
-        bot.register_next_step_handler(msg, save_photo)
+    # ---- SETTINGS ----
+    elif call.data == "settings":
+        if uid != OWNER_ID:
+            bot.answer_callback_query(call.id, "⛔ تني  Owner!", show_alert=True)
+            return
+
+        kb = types.InlineKeyboardMarkup(row_width=1)
+        kb.add(
+            types.InlineKeyboardButton("✏️ بدلكرنا پيامي Start", callback_data="edit_start"),
+            types.InlineKeyboardButton("⛔ داخستن", callback_data="close")
+        )
+        bot.send_message(cid, "⚙️ Settings", reply_markup=kb)
+
+    elif call.data == "edit_start":
+        if uid == OWNER_ID:
+            bot.send_message(cid, "✏️ پەیامی نوێ بنێرە:")
+            waiting_link[uid] = "edit_start"
 
     elif call.data == "close":
-        GROUP_ON[chat_id] = False
-        bot.edit_message_text("🔒 داخرا", chat_id, call.message.message_id)
+        waiting_link.pop(uid, None)
+        bot.delete_message(cid, call.message.message_id)
 
-def save_channel(chat_id, num, message):
-    if not message.text.startswith("@"):
-        bot.send_message(chat_id, "❌ ناوی کەناڵ بە @ دەست پێبکات")
-        return
-    CHANNELS[chat_id][num] = message.text
-    bot.send_message(chat_id, f"✅ کەناڵ {num} زیادکرا")
+# ========= HANDLE TEXT =========
+@bot.message_handler(func=lambda m: True)
+def handle_text(msg):
+    uid = msg.from_user.id
+    cid = msg.chat.id
 
-def save_photo(message):
-    JOIN_PHOTO[message.chat.id] = message.photo[-1].file_id
-    bot.send_message(message.chat.id, "✅ وێنەی Join دانرا")
-
-# ================= CHECK JOIN =================
-@bot.message_handler(content_types=["text","photo","video","document"])
-def check_join(message):
-    chat_id = message.chat.id
-
-    if message.chat.type == "private":
-        return
-    if not GROUP_ON.get(chat_id):
+    if uid not in waiting_link:
         return
 
-    channels = CHANNELS.get(chat_id, {})
-    if not channels:
-        return
+    # ---- EDIT START TEXT ----
+    if waiting_link[uid] == "edit_start" and uid == OWNER_ID:
+        global custom_start_text
+        custom_start_text = msg.text
+        waiting_link.pop(uid)
+        bot.send_message(cid, "✅ پەیامی Start گۆڕا!")
 
-    user = message.from_user
-
-    for ch in channels.values():
+    # ---- DOWNLOAD ----
+    elif waiting_link[uid] is True and msg.text.startswith("http"):
+        bot.send_message(cid, "⏳ نوكه دالنوت دبيت...")
         try:
-            m = bot.get_chat_member(ch, user.id)
-            if m.status in ["left","kicked"]:
-                raise Exception
-        except:
-            try:
-                bot.delete_message(chat_id, message.message_id)
-            except:
-                pass
+            ydl_opts = {
+                "format": "mp4",
+                "outtmpl": f"{DOWNLOAD_DIR}/%(title).50s.%(ext)s",
+                "quiet": True
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(msg.text, download=True)
+                file = ydl.prepare_filename(info)
 
-            kb = types.InlineKeyboardMarkup()
-            for c in channels.values():
-                kb.add(
-                    types.InlineKeyboardButton(
-                        "🔗 Join Channel",
-                        url=f"https://t.me/{c.replace('@','')}"
-                    )
-                )
+            with open(file, "rb") as f:
+                bot.send_video(cid, f)
 
-            text = f"""
-❌ <b>{user.first_name}</b>
+            os.remove(file)
+        except Exception as e:
+            bot.send_message(cid, f"❌ خه له ته:\n{e}")
 
-سەرەتا کەناڵ جوین بکە 👇
-• دوای جوین نامەکانت دەرکەون
-"""
+        waiting_link.pop(uid, None)
 
-            if chat_id in JOIN_PHOTO:
-                bot.send_photo(chat_id, JOIN_PHOTO[chat_id], caption=text, reply_markup=kb)
-            else:
-                bot.send_message(chat_id, text, reply_markup=kb)
-            break
-
-# ================= RUN =================
+print("🤖 BOT READY")
 bot.infinity_polling()
